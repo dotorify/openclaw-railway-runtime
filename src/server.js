@@ -503,6 +503,122 @@ app.post("/control/apply", requireControlAuth, async (_req, res) => {
   }
 });
 
+// Devices / pairing approvals (for gateway Control UI access)
+app.get("/control/devices", requireControlAuth, async (_req, res) => {
+  try {
+    if (!isConfigured()) {
+      return res.status(400).json({ ok: false, error: "not configured" });
+    }
+    await ensureGatewayRunning();
+    const args = ["devices", "list", "--json", "--token", OPENCLAW_GATEWAY_TOKEN];
+    const result = await runCmd(OPENCLAW_NODE, clawArgs(args));
+    try {
+      const data = JSON.parse(result.output);
+      return res.json({ ok: result.code === 0, data });
+    } catch {
+      return res
+        .status(result.code === 0 ? 200 : 500)
+        .json({ ok: result.code === 0, raw: result.output });
+    }
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post("/control/devices/approve", requireControlAuth, async (req, res) => {
+  try {
+    if (!isConfigured()) {
+      return res.status(400).json({ ok: false, error: "not configured" });
+    }
+    await ensureGatewayRunning();
+    const { requestId } = req.body || {};
+    const args = ["devices", "approve"];
+    if (requestId) {
+      args.push(String(requestId));
+    } else {
+      args.push("--latest");
+    }
+    args.push("--token", OPENCLAW_GATEWAY_TOKEN);
+    const result = await runCmd(OPENCLAW_NODE, clawArgs(args));
+    return res
+      .status(result.code === 0 ? 200 : 500)
+      .json({ ok: result.code === 0, output: result.output });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post("/control/devices/reject", requireControlAuth, async (req, res) => {
+  try {
+    if (!isConfigured()) {
+      return res.status(400).json({ ok: false, error: "not configured" });
+    }
+    await ensureGatewayRunning();
+    const { requestId } = req.body || {};
+    if (!requestId) {
+      return res.status(400).json({ ok: false, error: "Missing requestId" });
+    }
+    const args = [
+      "devices",
+      "reject",
+      String(requestId),
+      "--token",
+      OPENCLAW_GATEWAY_TOKEN,
+    ];
+    const result = await runCmd(OPENCLAW_NODE, clawArgs(args));
+    return res
+      .status(result.code === 0 ? 200 : 500)
+      .json({ ok: result.code === 0, output: result.output });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Aliases for UI wording
+app.get("/control/pairing/pending", requireControlAuth, async (_req, res) => {
+  try {
+    if (!isConfigured()) {
+      return res.status(400).json({ ok: false, error: "not configured" });
+    }
+    await ensureGatewayRunning();
+    const args = ["devices", "list", "--json", "--token", OPENCLAW_GATEWAY_TOKEN];
+    const result = await runCmd(OPENCLAW_NODE, clawArgs(args));
+    try {
+      const data = JSON.parse(result.output);
+      return res.json({ ok: result.code === 0, data });
+    } catch {
+      return res
+        .status(result.code === 0 ? 200 : 500)
+        .json({ ok: result.code === 0, raw: result.output });
+    }
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post("/control/pairing/approve", requireControlAuth, async (req, res) => {
+  try {
+    if (!isConfigured()) {
+      return res.status(400).json({ ok: false, error: "not configured" });
+    }
+    await ensureGatewayRunning();
+    const { requestId } = req.body || {};
+    const args = ["devices", "approve"];
+    if (requestId) {
+      args.push(String(requestId));
+    } else {
+      args.push("--latest");
+    }
+    args.push("--token", OPENCLAW_GATEWAY_TOKEN);
+    const result = await runCmd(OPENCLAW_NODE, clawArgs(args));
+    return res
+      .status(result.code === 0 ? 200 : 500)
+      .json({ ok: result.code === 0, output: result.output });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 if (ENABLE_LEGACY_SETUP) {
 app.get("/setup/healthz", async (_req, res) => {
   const configured = isConfigured();
