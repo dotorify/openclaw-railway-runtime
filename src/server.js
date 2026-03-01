@@ -503,6 +503,53 @@ app.post("/control/apply", requireControlAuth, async (_req, res) => {
   }
 });
 
+// Channel probe (useful for Discord connectivity debugging)
+app.post("/control/channels/probe", requireControlAuth, async (_req, res) => {
+  try {
+    if (!isConfigured()) {
+      return res.status(400).json({ ok: false, error: "not configured" });
+    }
+    await ensureGatewayRunning();
+    const args = ["channels", "status", "--probe"];
+    const result = await runCmd(OPENCLAW_NODE, clawArgs(args));
+    return res
+      .status(result.code === 0 ? 200 : 500)
+      .json({ ok: result.code === 0, output: result.output });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Safe agent model update without overwriting agents.list
+app.post("/control/agents/set-model", requireControlAuth, async (req, res) => {
+  try {
+    const agentId = String(req.body?.agentId || "").trim();
+    const model = req.body?.model;
+    if (!agentId) {
+      return res.status(400).json({ ok: false, error: "missing agentId" });
+    }
+
+    const base = isConfigured() ? loadConfigRaw() : {};
+    const list = base.agents?.list;
+    if (!Array.isArray(list)) {
+      return res.status(400).json({ ok: false, error: "agents.list missing" });
+    }
+
+    const idx = list.findIndex((a) => a?.id === agentId);
+    if (idx < 0) {
+      return res.status(404).json({ ok: false, error: `agent not found: ${agentId}` });
+    }
+
+    const next = { ...base, agents: { ...(base.agents || {}), list: [...list] } };
+    next.agents.list[idx] = { ...next.agents.list[idx], model };
+
+    const { backupPath } = saveConfigRaw(next);
+    return res.json({ ok: true, backupPath });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 if (ENABLE_LEGACY_SETUP) {
 app.get("/setup/healthz", async (_req, res) => {
   const configured = isConfigured();

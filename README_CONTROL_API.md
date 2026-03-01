@@ -17,6 +17,8 @@ All `/control/*` endpoints require:
 - `POST /control/validate` body: `{ "patch": { ... } }`
 - `PATCH /control/config` body: `{ "patch": { ... } }`
 - `POST /control/apply` (restarts gateway)
+- `POST /control/channels/probe` (runs `openclaw channels status --probe`)
+- `POST /control/agents/set-model` body: `{ "agentId": "main", "model": {"primary":"...","fallbacks":[]} }`
 
 ## Legacy setup UI
 
